@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        /* Anti-Flicker Fix */
-        html {
+        /* EMERGENCY Anti-Flicker Fix */
+        * {
             -webkit-backface-visibility: hidden;
-            -webkit-transform: translateZ(0) scale(1.0, 1.0);
+            -webkit-transform: translateZ(0);
             transform: translateZ(0);
         }
         
         body {
             opacity: 0;
-            transition: opacity 0.3s ease-in;
+            transition: opacity 0.2s ease-in;
         }
         
         body.loaded {
@@ -32,27 +32,6 @@
         }
         .report-header h1 { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
         .report-header p { font-size: 14px; color: #666; }
-
-        .filter-section {
-            background: #f9fafb;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 25px;
-            border: 1px solid #e5e7eb;
-        }
-        .filter-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        .form-group { display: flex; flex-direction: column; }
-        .form-group label { font-size: 12px; font-weight: bold; color: #374151; margin-bottom: 4px; }
-        .form-group select, .form-group input {
-            padding: 8px;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            font-size: 13px;
-        }
 
         .section-title {
             font-size: 16px;
@@ -111,12 +90,11 @@
                 box-shadow: none;
                 padding: 20px;
             }
-            .filter-section { display: none !important; }
         }
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin - Toko Hijabina</title>
-    <link rel="stylesheet" href="css/style.css?v=6">
+    <link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
     <!-- Sidebar -->
@@ -326,31 +304,16 @@
             </table>
         </div>
 
-        <!-- Reports Section -->
+        <!-- Reports Section - SIMPLIFIED -->
         <div class="content-section" id="reports-section">
             <div class="section-header">
-                <h2 id="reportTitle">Laporan Penjualan</h2>
-                <button class="btn-primary no-print" onclick="window.printReport()">🖨️ Cetak Laporan</button>
+                <h2 id="reportTitle">Laporan Penjualan (Semua)</h2>
+                <button class="btn-primary no-print" onclick="window.print()">🖨️ Cetak</button>
             </div>
             
             <div class="report-container">
-                <!-- Filter -->
-                <div class="filter-section no-print">
-                    <div class="filter-row" style="grid-template-columns: 1fr;">
-                        <div class="form-group">
-                            <label for="reportPeriod">Pilih Periode Laporan</label>
-                            <select id="reportPeriod">
-                                <option value="today">Hari Ini</option>
-                                <option value="week">Minggu Ini</option>
-                                <option value="month" selected>Bulan Ini</option>
-                                <option value="year">Tahun Ini</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Tabel Detail Penjualan -->
-                <h2 class="section-title" id="salesDetailTitle">Detail Penjualan</h2>
+                <h2 class="section-title">Detail Penjualan</h2>
                 <table class="report-table" id="salesDetailTable">
                     <thead>
                         <tr>
@@ -364,7 +327,7 @@
                     </thead>
                     <tbody id="salesDetailTableBody">
                         <tr>
-                            <td colspan="6" class="text-center" style="padding: 30px;">Tidak ada data penjualan untuk periode ini.</td>
+                            <td colspan="6" class="text-center" style="padding: 30px;">Loading...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -427,15 +390,12 @@
 
     <!-- Anti-Flicker Script -->
     <script>
-        // Prevent flicker on page load
         window.addEventListener('load', function() {
             document.body.classList.add('loaded');
         });
-        
-        // Emergency fallback
         setTimeout(function() {
             document.body.classList.add('loaded');
-        }, 500);
+        }, 300);
     </script>
 
     <!-- Firebase Scripts -->
@@ -444,8 +404,8 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     
     <!-- Your Scripts -->
-    <script type="module" src="js/firebase-config.js?v=6"></script>
-    <script type="module" src="js/dashboard.js?v=6"></script>
+    <script type="module" src="js/firebase-config.js?v=10"></script>
+    <script type="module" src="js/dashboard.js?v=10"></script>
 
     <!-- Mark Order as Completed Script -->
     <script type="module">
@@ -478,171 +438,61 @@
         }
     </script>
 
-    <!-- Reports Script - COMPLETELY FIXED -->
+    <!-- Reports Script - SUPER SIMPLE NO LOOP -->
     <script type="module">
         import { db } from './js/firebase-config.js';
 
-        const formatCurrency = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
-        const formatDate = (timestamp) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleDateString('id-ID') : '-';
+        const formatCurrency = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
+        const formatDate = (t) => t ? new Date(t.seconds * 1000).toLocaleDateString('id-ID') : '-';
 
-        let isLoadingReports = false;
-        let reportLoadTimeout = null;
+        let hasLoadedReports = false;
 
         window.loadReports = async function() {
-            // Clear any pending timeouts
-            if (reportLoadTimeout) {
-                clearTimeout(reportLoadTimeout);
-                reportLoadTimeout = null;
-            }
-
-            if (isLoadingReports) {
-                console.log('Already loading reports, skipping...');
+            if (hasLoadedReports) {
+                console.log('Reports already loaded, skipping');
                 return;
             }
+            hasLoadedReports = true;
             
-            isLoadingReports = true;
+            const tbody = document.getElementById('salesDetailTableBody');
+            if (!tbody) return;
             
             try {
-                const reportPeriodElement = document.getElementById('reportPeriod');
-                if (!reportPeriodElement) {
-                    console.log('Report period element not found');
-                    return;
-                }
-
-                const period = reportPeriodElement.value;
-                let startDate = new Date();
-
-                // Set startDate berdasarkan periode
-                switch (period) {
-                    case 'today':
-                        startDate.setHours(0, 0, 0, 0);
-                        break;
-                    case 'week':
-                        const dayOfWeek = startDate.getDay();
-                        const diff = startDate.getDate() - dayOfWeek;
-                        startDate.setDate(diff);
-                        startDate.setHours(0, 0, 0, 0);
-                        break;
-                    case 'year':
-                        startDate.setMonth(0, 1);
-                        startDate.setHours(0, 0, 0, 0);
-                        break;
-                    case 'month':
-                    default:
-                        startDate.setDate(1);
-                        startDate.setHours(0, 0, 0, 0);
-                        break;
-                }
-
-                console.log('Loading reports for period:', period, 'Start date:', startDate);
-
-                // Ambil semua orders, lalu filter di JavaScript
-                const ordersSnapshot = await db.collection('orders')
+                const snapshot = await db.collection('orders')
                     .orderBy('createdAt', 'desc')
+                    .limit(50)
                     .get();
 
-                const salesDetailBody = document.getElementById('salesDetailTableBody');
-                if (!salesDetailBody) {
-                    console.log('Sales detail body not found');
+                tbody.innerHTML = '';
+
+                if (snapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center" style="padding: 30px;">Tidak ada data.</td></tr>';
                     return;
                 }
-                
-                salesDetailBody.innerHTML = '';
 
-                // Filter orders berdasarkan periode
-                const filteredOrders = [];
-                ordersSnapshot.forEach(doc => {
-                    const order = doc.data();
-                    if (order.createdAt && order.createdAt.toDate() >= startDate) {
-                        filteredOrders.push({ id: doc.id, data: order });
-                    }
+                snapshot.forEach(doc => {
+                    const o = doc.data();
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${formatDate(o.createdAt)}</td>
+                            <td>${doc.id.substring(0, 8)}...</td>
+                            <td>${o.customerName || 'N/A'}</td>
+                            <td class="text-center">${o.items ? o.items.reduce((s, i) => s + i.quantity, 0) : 0}</td>
+                            <td class="text-right">${formatCurrency(o.totalAmount || 0)}</td>
+                            <td class="text-center">${o.status}</td>
+                        </tr>
+                    `;
                 });
-
-                if (filteredOrders.length === 0) {
-                    salesDetailBody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 30px;">Tidak ada data penjualan untuk periode ini.</td></tr>`;
-                } else {
-                    filteredOrders.forEach(({ id, data: order }) => {
-                        const row = `
-                            <tr>
-                                <td>${formatDate(order.createdAt)}</td>
-                                <td>${id.substring(0, 8)}...</td>
-                                <td>${order.customerName || 'N/A'}</td>
-                                <td class="text-center">${order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0}</td>
-                                <td class="text-right">${formatCurrency(order.totalAmount || 0)}</td>
-                                <td class="text-center"><span class="status-badge status-${order.status}">${order.status}</span></td>
-                            </tr>
-                        `;
-                        salesDetailBody.innerHTML += row;
-                    });
-                }
-                
-                console.log('Reports loaded successfully');
-            } catch (error) {
-                console.error("Error loading reports: ", error);
-                const salesDetailBody = document.getElementById('salesDetailTableBody');
-                if (salesDetailBody) {
-                    salesDetailBody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 30px; color: #e74c3c;">Error: ${error.message}</td></tr>`;
-                }
-            } finally {
-                isLoadingReports = false;
+            } catch (e) {
+                console.error(e);
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">Error: ' + e.message + '</td></tr>';
             }
         }
 
-        window.printReport = function() {
-            window.loadReports().then(() => {
-                setTimeout(() => {
-                    window.print();
-                }, 250);
-            });
-        }
-
-        // Event listener - ONLY run once when DOM is ready
-        let initialized = false;
-        
-        function initializeReports() {
-            if (initialized) {
-                console.log('Reports already initialized');
-                return;
-            }
-            initialized = true;
-
-            // Listen to tab click
-            const reportTab = document.querySelector('.nav-item[data-section="reports"]');
-            if (reportTab) {
-                reportTab.addEventListener('click', function() {
-                    // Use timeout to ensure section is visible
-                    reportLoadTimeout = setTimeout(() => {
-                        const reportsSection = document.getElementById('reports-section');
-                        if (reportsSection && reportsSection.classList.contains('active')) {
-                            window.loadReports();
-                        }
-                    }, 150);
-                }, { once: false });
-            }
-
-            // Listen to dropdown change
-            const reportPeriod = document.getElementById('reportPeriod');
-            if (reportPeriod) {
-                reportPeriod.addEventListener('change', function() {
-                    // Debounce the change event
-                    if (reportLoadTimeout) {
-                        clearTimeout(reportLoadTimeout);
-                    }
-                    reportLoadTimeout = setTimeout(() => {
-                        window.loadReports();
-                    }, 100);
-                });
-            }
-
-            console.log('Reports initialized');
-        }
-
-        // Initialize when DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeReports);
-        } else {
-            initializeReports();
-        }
+        // ONLY load when Reports tab is clicked
+        document.querySelector('.nav-item[data-section="reports"]')?.addEventListener('click', function() {
+            setTimeout(() => window.loadReports(), 300);
+        });
     </script>
 </body>
 </html>
