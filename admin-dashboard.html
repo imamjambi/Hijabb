@@ -2,16 +2,121 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Admin - Toko Hijabina</title>
-    <link rel="stylesheet" href="css/style.css?v=4">
     <style>
-        /* EMERGENCY: Matikan semua animasi */
-        *, *::before, *::after {
-            animation: none !important;
-            transition: none !important;
+        /* Anti-Flicker Fix */
+        html {
+            -webkit-backface-visibility: hidden;
+            -webkit-transform: translateZ(0) scale(1.0, 1.0);
+            transform: translateZ(0);
+        }
+        
+        body {
+            opacity: 0;
+            transition: opacity 0.3s ease-in;
+        }
+        
+        body.loaded {
+            opacity: 1;
+        }
+
+        /* Gaya khusus untuk Laporan yang diintegrasikan */
+        .report-container {
+            font-family: 'Arial', sans-serif;
+            color: #333;
+        }
+        .report-header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        .report-header h1 { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+        .report-header p { font-size: 14px; color: #666; }
+
+        .filter-section {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 25px;
+            border: 1px solid #e5e7eb;
+        }
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-size: 12px; font-weight: bold; color: #374151; margin-bottom: 4px; }
+        .form-group select, .form-group input {
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #333;
+        }
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        .report-table th {
+            background: #f3f4f6;
+            text-align: left;
+            padding: 8px;
+            font-weight: bold;
+            border: 1px solid #d1d5db;
+        }
+        .report-table td {
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .report-table tbody tr:nth-child(even) { background: #f9fafb; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        .content-section {
+            display: none;
+        }
+        
+        .content-section.active {
+            display: block;
+        }
+
+        /* Print Styles for Report */
+        @media print {
+            body { background: white; padding: 0; margin: 0; }
+            .sidebar, .header, .no-print { display: none !important; }
+            .main-content {
+                margin-left: 0 !important;
+                padding: 0 !important;
+            }
+            .content-section {
+                display: none !important;
+                padding: 0 !important;
+                box-shadow: none;
+                border: none;
+            }
+            .content-section.active {
+                display: block !important;
+            }
+            .report-container {
+                box-shadow: none;
+                padding: 20px;
+            }
+            .filter-section { display: none !important; }
         }
     </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - Toko Hijabina</title>
+    <link rel="stylesheet" href="css/style.css?v=6">
 </head>
 <body>
     <!-- Sidebar -->
@@ -36,13 +141,16 @@
                 <span>👥</span>
                 <span>Pelanggan</span>
             </li>
+            <li class="nav-item" data-section="reports">
+                <span>📈</span>
+                <span>Laporan</span>
+            </li>
             <li class="nav-item" data-section="settings">
                 <span>⚙️</span>
                 <span>Pengaturan</span>
             </li>
         </ul>
     </div>
-    
     <!-- Main Content -->
     <div class="main-content">
         <!-- Header -->
@@ -218,6 +326,51 @@
             </table>
         </div>
 
+        <!-- Reports Section -->
+        <div class="content-section" id="reports-section">
+            <div class="section-header">
+                <h2 id="reportTitle">Laporan Penjualan</h2>
+                <button class="btn-primary no-print" onclick="window.printReport()">🖨️ Cetak Laporan</button>
+            </div>
+            
+            <div class="report-container">
+                <!-- Filter -->
+                <div class="filter-section no-print">
+                    <div class="filter-row" style="grid-template-columns: 1fr;">
+                        <div class="form-group">
+                            <label for="reportPeriod">Pilih Periode Laporan</label>
+                            <select id="reportPeriod">
+                                <option value="today">Hari Ini</option>
+                                <option value="week">Minggu Ini</option>
+                                <option value="month" selected>Bulan Ini</option>
+                                <option value="year">Tahun Ini</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabel Detail Penjualan -->
+                <h2 class="section-title" id="salesDetailTitle">Detail Penjualan</h2>
+                <table class="report-table" id="salesDetailTable">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>ID Pesanan</th>
+                            <th>Pelanggan</th>
+                            <th class="text-center">Jumlah Item</th>
+                            <th class="text-right">Total</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="salesDetailTableBody">
+                        <tr>
+                            <td colspan="6" class="text-center" style="padding: 30px;">Tidak ada data penjualan untuk periode ini.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Settings Section -->
         <div class="content-section" id="settings-section">
             <div class="section-header">
@@ -272,14 +425,27 @@
         </div>
     </div>
 
+    <!-- Anti-Flicker Script -->
+    <script>
+        // Prevent flicker on page load
+        window.addEventListener('load', function() {
+            document.body.classList.add('loaded');
+        });
+        
+        // Emergency fallback
+        setTimeout(function() {
+            document.body.classList.add('loaded');
+        }, 500);
+    </script>
+
     <!-- Firebase Scripts -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     
     <!-- Your Scripts -->
-    <script type="module" src="js/firebase-config.js"></script>
-    <script type="module" src="js/dashboard.js"></script>
+    <script type="module" src="js/firebase-config.js?v=6"></script>
+    <script type="module" src="js/dashboard.js?v=6"></script>
 
     <!-- Mark Order as Completed Script -->
     <script type="module">
@@ -312,6 +478,171 @@
         }
     </script>
 
-    <!-- NO REPORTS SCRIPT - REMOVED COMPLETELY -->
+    <!-- Reports Script - COMPLETELY FIXED -->
+    <script type="module">
+        import { db } from './js/firebase-config.js';
+
+        const formatCurrency = (number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+        const formatDate = (timestamp) => timestamp ? new Date(timestamp.seconds * 1000).toLocaleDateString('id-ID') : '-';
+
+        let isLoadingReports = false;
+        let reportLoadTimeout = null;
+
+        window.loadReports = async function() {
+            // Clear any pending timeouts
+            if (reportLoadTimeout) {
+                clearTimeout(reportLoadTimeout);
+                reportLoadTimeout = null;
+            }
+
+            if (isLoadingReports) {
+                console.log('Already loading reports, skipping...');
+                return;
+            }
+            
+            isLoadingReports = true;
+            
+            try {
+                const reportPeriodElement = document.getElementById('reportPeriod');
+                if (!reportPeriodElement) {
+                    console.log('Report period element not found');
+                    return;
+                }
+
+                const period = reportPeriodElement.value;
+                let startDate = new Date();
+
+                // Set startDate berdasarkan periode
+                switch (period) {
+                    case 'today':
+                        startDate.setHours(0, 0, 0, 0);
+                        break;
+                    case 'week':
+                        const dayOfWeek = startDate.getDay();
+                        const diff = startDate.getDate() - dayOfWeek;
+                        startDate.setDate(diff);
+                        startDate.setHours(0, 0, 0, 0);
+                        break;
+                    case 'year':
+                        startDate.setMonth(0, 1);
+                        startDate.setHours(0, 0, 0, 0);
+                        break;
+                    case 'month':
+                    default:
+                        startDate.setDate(1);
+                        startDate.setHours(0, 0, 0, 0);
+                        break;
+                }
+
+                console.log('Loading reports for period:', period, 'Start date:', startDate);
+
+                // Ambil semua orders, lalu filter di JavaScript
+                const ordersSnapshot = await db.collection('orders')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+
+                const salesDetailBody = document.getElementById('salesDetailTableBody');
+                if (!salesDetailBody) {
+                    console.log('Sales detail body not found');
+                    return;
+                }
+                
+                salesDetailBody.innerHTML = '';
+
+                // Filter orders berdasarkan periode
+                const filteredOrders = [];
+                ordersSnapshot.forEach(doc => {
+                    const order = doc.data();
+                    if (order.createdAt && order.createdAt.toDate() >= startDate) {
+                        filteredOrders.push({ id: doc.id, data: order });
+                    }
+                });
+
+                if (filteredOrders.length === 0) {
+                    salesDetailBody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 30px;">Tidak ada data penjualan untuk periode ini.</td></tr>`;
+                } else {
+                    filteredOrders.forEach(({ id, data: order }) => {
+                        const row = `
+                            <tr>
+                                <td>${formatDate(order.createdAt)}</td>
+                                <td>${id.substring(0, 8)}...</td>
+                                <td>${order.customerName || 'N/A'}</td>
+                                <td class="text-center">${order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0}</td>
+                                <td class="text-right">${formatCurrency(order.totalAmount || 0)}</td>
+                                <td class="text-center"><span class="status-badge status-${order.status}">${order.status}</span></td>
+                            </tr>
+                        `;
+                        salesDetailBody.innerHTML += row;
+                    });
+                }
+                
+                console.log('Reports loaded successfully');
+            } catch (error) {
+                console.error("Error loading reports: ", error);
+                const salesDetailBody = document.getElementById('salesDetailTableBody');
+                if (salesDetailBody) {
+                    salesDetailBody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding: 30px; color: #e74c3c;">Error: ${error.message}</td></tr>`;
+                }
+            } finally {
+                isLoadingReports = false;
+            }
+        }
+
+        window.printReport = function() {
+            window.loadReports().then(() => {
+                setTimeout(() => {
+                    window.print();
+                }, 250);
+            });
+        }
+
+        // Event listener - ONLY run once when DOM is ready
+        let initialized = false;
+        
+        function initializeReports() {
+            if (initialized) {
+                console.log('Reports already initialized');
+                return;
+            }
+            initialized = true;
+
+            // Listen to tab click
+            const reportTab = document.querySelector('.nav-item[data-section="reports"]');
+            if (reportTab) {
+                reportTab.addEventListener('click', function() {
+                    // Use timeout to ensure section is visible
+                    reportLoadTimeout = setTimeout(() => {
+                        const reportsSection = document.getElementById('reports-section');
+                        if (reportsSection && reportsSection.classList.contains('active')) {
+                            window.loadReports();
+                        }
+                    }, 150);
+                }, { once: false });
+            }
+
+            // Listen to dropdown change
+            const reportPeriod = document.getElementById('reportPeriod');
+            if (reportPeriod) {
+                reportPeriod.addEventListener('change', function() {
+                    // Debounce the change event
+                    if (reportLoadTimeout) {
+                        clearTimeout(reportLoadTimeout);
+                    }
+                    reportLoadTimeout = setTimeout(() => {
+                        window.loadReports();
+                    }, 100);
+                });
+            }
+
+            console.log('Reports initialized');
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeReports);
+        } else {
+            initializeReports();
+        }
+    </script>
 </body>
 </html>
