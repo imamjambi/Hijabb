@@ -152,9 +152,9 @@ async function loadRecentOrders() {
         console.error('Error loading recent orders:', error);
     }
 }
+
 // Expose function to be callable from HTML
 window.loadRecentOrders = loadRecentOrders;
-
 
 // Setup navigation
 function setupNavigation() {
@@ -496,9 +496,9 @@ window.viewOrderDetails = async (orderId) => {
         modalDetails.style.display = 'block';
     }
 };
+
 // Expose function to be callable from HTML
 window.loadOrdersData = loadOrdersData;
-
 
 // Load customers data
 async function loadCustomersData() {
@@ -625,3 +625,6 @@ async function loadReportsData() {
         console.error('Error loading reports:', error);
     }
 }
+
+// Expose function to be callable from HTML
+window.loadReportsData = loadReportsData;
