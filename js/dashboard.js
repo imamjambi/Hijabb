@@ -4,8 +4,18 @@
 // Impor auth dan db karena ini sekarang adalah module
 import { auth, db } from './firebase-config.js';
 
+// Prevent multiple initializations
+let isInitialized = false;
+let currentSection = 'dashboard';
+
 // Load data dashboard saat halaman dimuat
 document.addEventListener('DOMContentLoaded', function() {
+    if (isInitialized) {
+        console.log('Dashboard already initialized');
+        return;
+    }
+    isInitialized = true;
+
     // Cek authentication
     auth.onAuthStateChanged(async (user) => {
         if (!user) {
@@ -171,6 +181,13 @@ function setupNavigation() {
             // Get section name
             const section = this.getAttribute('data-section');
             
+            // Don't reload if already on this section
+            if (currentSection === section) {
+                console.log(`Already on ${section}, skipping reload`);
+                return;
+            }
+            currentSection = section;
+            
             // Hide all sections
             document.querySelectorAll('.content-section').forEach(s => {
                 s.classList.remove('active');
@@ -197,14 +214,18 @@ function setupNavigation() {
                 pageTitle.textContent = pageTitles[section] || 'Dashboard';
             }
             
-            // Load data for section
-            loadSectionData(section);
+            // Load data for section (with debounce)
+            setTimeout(() => {
+                loadSectionData(section);
+            }, 100);
         });
     });
 }
 
-// Load section data
+// Load section data - FIXED: Prevent reload on reports section
 function loadSectionData(section) {
+    console.log(`Loading data for section: ${section}`);
+    
     switch(section) {
         case 'products':
             loadProductsData();
@@ -216,7 +237,8 @@ function loadSectionData(section) {
             loadCustomersData();
             break;
         case 'reports':
-            loadReportsData();
+            // Don't call loadReportsData here - it's handled by admin-dashboard.html
+            console.log('Reports section - handled by external script');
             break;
     }
 }
@@ -580,51 +602,11 @@ window.viewCustomer = (customerId) => {
     alert(`Melihat detail untuk pelanggan dengan ID: ${customerId}`);
 };
 
-// Load reports data
-async function loadReportsData() {
-    try {
-        const ordersSnapshot = await db.collection('orders').get();
-        
-        let todaySales = 0;
-        let weekSales = 0;
-        let monthSales = 0;
-        let yearSales = 0;
-        
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const weekStart = new Date(now.setDate(now.getDate() - 7));
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const yearStart = new Date(now.getFullYear(), 0, 1);
-        
-        ordersSnapshot.forEach(doc => {
-            const order = doc.data();
-            if (order.status === 'completed' && order.createdAt) {
-                const orderDate = order.createdAt.toDate();
-                
-                // Ambil total dengan beberapa kemungkinan field name
-                let total = order.totalAmount || order.total || order.totalPrice || 0;
-                
-                // Jika total 0, hitung dari items
-                if (total === 0 && order.items && order.items.length > 0) {
-                    total = order.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-                }
-                
-                if (orderDate >= todayStart) todaySales += total;
-                if (orderDate >= weekStart) weekSales += total;
-                if (orderDate >= monthStart) monthSales += total;
-                if (orderDate >= yearStart) yearSales += total;
-            }
-        });
-        
-        updateStatElement('todaySales', formatCurrency(todaySales));
-        updateStatElement('weekSales', formatCurrency(weekSales));
-        updateStatElement('monthSales', formatCurrency(monthSales));
-        updateStatElement('yearSales', formatCurrency(yearSales));
-        
-    } catch (error) {
-        console.error('Error loading reports:', error);
-    }
-}
+// Load reports data - REMOVED to prevent conflicts
+// Reports are now handled entirely by admin-dashboard.html script
+// DO NOT call this from loadSectionData
 
-// Expose function to be callable from HTML
-window.loadReportsData = loadReportsData;
+// Expose function to be callable from HTML (but don't use it)
+window.loadReportsData = function() {
+    console.log('loadReportsData called but disabled - reports handled by external script');
+};
